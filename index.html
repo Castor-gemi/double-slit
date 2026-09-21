@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>양자 상보성 및 이중슬릿 관측 시뮬레이션</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #151c2c;
+            --accent-color: #00f2ff;
+            --accent-glow: rgba(0, 242, 255, 0.4);
+            --text-main: #e2e8f0;
+            --text-sub: #94a3b8;
+            --border-color: #2a364f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 15px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            color: var(--accent-color);
+            margin-bottom: 6px;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            color: var(--text-sub);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 850px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel h2 {
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            color: #fff;
+        }
+
+        .param-list {
+            list-style: none;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .param-list li {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .param-label {
+            color: var(--text-sub);
+        }
+
+        .param-value {
+            font-family: monospace;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            outline: none;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .calculated-box {
+            background: rgba(0, 242, 255, 0.05);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            background: var(--border-color);
+            border: none;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .visual-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .canvas-container {
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .canvas-title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 0.8rem;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: var(--accent-color);
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+        }
+
+        .pedagogy-note {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-sub);
+        }
+
+        .pedagogy-note strong {
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>현대물리학 실습: 양자 상보성 및 이중슬릿 관측 시뮬레이터</h1>
+        <p>관측 강도(D)에 따른 전자의 확률밀도함수 P(x) 및 스크린 축적 패턴 변화</p>
+    </header>
+
+    <div class="main-content">
+        <!-- 설정 및 수치 패널 -->
+        <div class="panel">
+            <h2>통제 변인 (Parameters)</h2>
+            <ul class="param-list">
+                <li><span class="param-label">가속 전압 (V_acc)</span><span class="param-value">100 V</span></li>
+                <li><span class="param-label">물질파 파장 (λ)</span><span class="param-value">0.123 nm</span></li>
+                <li><span class="param-label">슬릿 간격 (d)</span><span class="param-value">1.0 μm</span></li>
+                <li><span class="param-label">슬릿-스크린 거리 (L)</span><span class="param-value">1.0 m</span></li>
+            </ul>
+
+            <h2>실험 조절 변인</h2>
+            <div class="control-group">
+                <div class="slider-header">
+                    <span>관측 강도 (D)</span>
+                    <span id="d-val" class="param-value">0.00</span>
+                </div>
+                <input type="range" id="d-slider" min="0" max="1" step="0.01" value="0">
+            </div>
+
+            <h2>계산된 계산값</h2>
+            <div class="calculated-box">
+                <div>• 선명도 $V = \sqrt{1-D}$: <b id="v-val" style="color: var(--accent-color);">1.000</b></div>
+                <div>• 간섭무늬 주기 $\Delta x$: <b style="color: #fff;">0.123 mm</b></div>
+                <div>• 양자 상태: <span id="state-desc" style="color: #fff;">완전 파동성 (100% 간섭)</span></div>
+            </div>
+
+            <div class="btn-group">
+                <button id="toggle-btn">전자 방출 시뮬레이션 시작</button>
+                <button id="reset-btn">스크린 리셋</button>
+            </div>
+        </div>
+
+        <!-- 시각화 영역 -->
+        <div class="visual-panel">
+            <!-- 그래프 캐버스 -->
+            <div class="canvas-container">
+                <div class="canvas-title">이론적 확률밀도함수 P(x)</div>
+                <canvas id="graphCanvas" width="600" height="220"></canvas>
+            </div>
+
+            <!-- 스크린 2D 이중슬릿 전자 축적 캐버스 -->
+            <div class="canvas-container">
+                <div class="canvas-title">검출기 스크린 (실시간 전자 충돌 누적)</div>
+                <canvas id="screenCanvas" width="600" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="pedagogy-note">
+        <strong>교수님의 강의 노트:</strong><br>
+        1. <b>$D = 0$ (관측 없음):</b> 어느 슬릿으로 지나갔는지 전혀 알 수 없습니다. 선명도 $V=1$이 되어 완전한 파동 간섭 무늬가 나타납니다.<br>
+        2. <b>$D = 1$ (완전 관측):</b> 측정 장치가 전자의 경로를 100% 식별합니다. 선명도 $V=0$이 되어 파동 간섭이 완전히 파괴되고 단순 두 입자 분포의 합으로 변합니다.<br>
+        3. <b>$0 < D < 1$ (부분 관측):</b> 경로 정보가 모호하게 유출됨에 따라 간섭 무늬의 대조비(Visibility)가 연속적으로 감소합니다.
+    </div>
+</div>
+
+<script>
+    // 물리 상수 및 제어 변수
+    const lambda = 0.123e-9; // 물질파 파장 (m)
+    const d = 1.0e-6;        // 슬릿 간격 (m)
+    const L = 1.0;           // 스크린 거리 (m)
+    const a = 0.25e-6;       // 단일 슬릿 폭 (m)
+    
+    // x축 표기 범위: -1.5 mm ~ +1.5 mm
+    const xMax = 1.5e-3;
+
+    // DOM 요소
+    const dSlider = document.getElementById('d-slider');
+    const dValText = document.getElementById('d-val');
+    const vValText = document.getElementById('v-val');
+    const stateDesc = document.getElementById('state-desc');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+    const screenCanvas = document.getElementById('screenCanvas');
+    const screenCtx = screenCanvas.getContext('2d');
+
+    let D = parseFloat(dSlider.value);
+    let V = Math.sqrt(1 - D);
+    let isSimulating = false;
+    let animId = null;
+    let electronHits = [];
+
+    // 확률밀도함수 P(x) 계산
+    function getProbability(x, currentV) {
+        // 단일 슬릿 회절 회절 봉투 (sinc 함수)
+        const beta = (Math.PI * a * x) / (lambda * L);
+        const sinc = beta === 0 ? 1.0 : Math.sin(beta) / beta;
+        const diffraction = sinc * sinc;
+
+        // 이중 슬릿 간섭 항
+        const alpha = (Math.PI * d * x) / (lambda * L);
+        const interference = 1 + currentV * Math.cos(2 * alpha);
+
+        return diffraction * interference; // 최대값 ~ 2.0
+    }
+
+    // 상태 설명 업데이트
+    function updateStateText() {
+        if (D === 0) {
+            stateDesc.textContent = "완전 파동성 (100% 간섭)";
+            stateDesc.style.color = "#00f2ff";
+        } else if (D === 1) {
+            stateDesc.textContent = "완전 입자성 (간섭 무늬 없음)";
+            stateDesc.style.color = "#ff4757";
+        } else {
+            stateDesc.textContent = `파동-입자 중간 상태 (선명도 ${(V*100).toFixed(1)}%)`;
+            stateDesc.style.color = "#ffa500";
+        }
+    }
+
+    // P(x) 그래프 그리기
+    function drawGraph() {
+        const w = graphCanvas.width;
+        const h = graphCanvas.height;
+        const pad = 35;
+
+        graphCtx.clearRect(0, 0, w, h);
+
+        // 격자선 및 그리드
+        graphCtx.strokeStyle = "#1e293b";
+        graphCtx.lineWidth = 1;
+
+        // X축 / Y축
+        graphCtx.beginPath();
+        graphCtx.moveTo(pad, h - pad);
+        graphCtx.lineTo(w - pad, h - pad);
+        graphCtx.moveTo(w / 2, 10);
+        graphCtx.lineTo(w / 2, h - pad);
+        graphCtx.stroke();
+
+        // X축 눈금 (mm 단위)
+        graphCtx.fillStyle = "#64748b";
+        graphCtx.font = "10px sans-serif";
+        graphCtx.textAlign = "center";
+        for (let mm = -1.5; mm <= 1.5; mm += 0.5) {
+            const canvasX = pad + ((mm * 1e-3 + xMax) / (2 * xMax)) * (w - 2 * pad);
+            graphCtx.beginPath();
+            graphCtx.moveTo(canvasX, h - pad);
+            graphCtx.lineTo(canvasX, h - pad + 4);
+            graphCtx.stroke();
+            graphCtx.fillText(mm.toFixed(1), canvasX, h - pad + 15);
+        }
+        graphCtx.fillText("스크린 위치 x (mm)", w / 2, h - 5);
+
+        // 확률 밀도 곡선 그리기
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = "#00f2ff";
+        graphCtx.lineWidth = 2;
+
+        const points = 500;
+        for (let i = 0; i <= points; i++) {
+            const canvasX = pad + (i / points) * (w - 2 * pad);
+            const x = -xMax + (i / points) * (2 * xMax);
+            const p = getProbability(x, V); // Range: 0 ~ 2
+            
+            // Y 픽셀 변환 (2.0일 때 최고 높이)
+            const canvasY = (h - pad) - (p / 2.0) * (h - pad - 20);
+
+            if (i === 0) graphCtx.moveTo(canvasX, canvasY);
+            else graphCtx.lineTo(canvasX, canvasY);
+        }
+        graphCtx.stroke();
+
+        // 이론적 채우기 영역 (Soft glow)
+        graphCtx.lineTo(w - pad, h - pad);
+        graphCtx.lineTo(pad, h - pad);
+        graphCtx.fillStyle = "rgba(0, 242, 255, 0.08)";
+        graphCtx.fill();
+    }
+
+    // 2D 스크린 그리기 (누적 전자 및 연속 강도 맵)
+    function drawScreen() {
+        const w = screenCanvas.width;
+        const h = screenCanvas.height;
+
+        // 배경
+        screenCtx.fillStyle = "#000";
+        screenCtx.fillRect(0, 0, w, h);
+
+        // 1. 이론적 연속 밝기 띠 (배경 맵)
+        const imgData = screenCtx.createImageData(w, h);
+        for (let px = 0; px < w; px++) {
+            const x = -xMax + (px / w) * (2 * xMax);
+            const p = getProbability(x, V); // 0 ~ 2
+            const intensity = Math.floor((p / 2.0) * 120); // 은은한 배경 밝기
+
+            for (let py = 0; py < h; py++) {
+                const idx = (py * w + px) * 4;
+                imgData.data[idx] = 0;             // R
+                imgData.data[idx + 1] = intensity; // G
+                imgData.data[idx + 2] = Math.floor(intensity * 1.5); // B
+                imgData.data[idx + 3] = 255;       // Alpha
+            }
+        }
+        screenCtx.putImageData(imgData, 0, 0);
+
+        // 2. 누적된 전자 점(Dot)들 그리기
+        screenCtx.fillStyle = "#00f2ff";
+        for (let i = 0; i < electronHits.length; i++) {
+            const hit = electronHits[i];
+            screenCtx.beginPath();
+            screenCtx.arc(hit.cx, hit.cy, 1.2, 0, Math.PI * 2);
+            screenCtx.fillStyle = `rgba(0, 242, 255, ${hit.alpha})`;
+            screenCtx.fill();
+        }
+    }
+
+    // 몬테카를로 기법을 이용한 전자 충돌 샘플링 (Rejection Sampling)
+    function emitElectrons(count = 20) {
+        const w = screenCanvas.width;
+        const h = screenCanvas.height;
+
+        for (let k = 0; k < count; k++) {
+            let accepted = false;
+            let x, pNormalized;
+            
+            // 거절 샘플링 알고리즘
+            while (!accepted) {
+                x = -xMax + Math.random() * (2 * xMax);
+                const randVal = Math.random();
+                pNormalized = getProbability(x, V) / 2.0; // 0 ~ 1 범위로 정규화
+                
+                if (randVal <= pNormalized) {
+                    accepted = true;
+                }
+            }
+
+            // Canvas 좌표로 변환
+            const cx = ((x + xMax) / (2 * xMax)) * w;
+            const cy = Math.random() * h;
+            electronHits.push({ cx, cy, alpha: 0.7 + Math.random() * 0.3 });
+        }
+
+        // 축적 점 개수 제한 (메모리 관리: 최근 15,000개까지 유지)
+        if (electronHits.length > 15000) {
+            electronHits.splice(0, electronHits.length - 15000);
+        }
+    }
+
+    // 메인 시뮬레이션 루프
+    function loop() {
+        if (isSimulating) {
+            emitElectrons(35); // 프레임당 35개 전자 발사
+            drawScreen();
+        }
+        animId = requestAnimationFrame(loop);
+    }
+
+    // 입력 이벤트 리스너
+    dSlider.addEventListener('input', (e) => {
+        D = parseFloat(e.target.value);
+        V = Math.sqrt(1 - D);
+
+        // 수치 업데이트
+        dValText.textContent = D.toFixed(2);
+        vValText.textContent = V.toFixed(3);
+        
+        updateStateText();
+        drawGraph();
+        drawScreen();
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        isSimulating = !isSimulating;
+        toggleBtn.textContent = isSimulating ? "시뮬레이션 일시정지" : "전자 방출 시뮬레이션 시작";
+        toggleBtn.style.background = isSimulating ? "#ff4757" : "var(--accent-color)";
+        toggleBtn.style.color = isSimulating ? "#fff" : "#000";
+    });
+
+    resetBtn.addEventListener('click', () => {
+        electronHits = [];
+        drawScreen();
+    });
+
+    // 초기화 실행
+    updateStateText();
+    drawGraph();
+    drawScreen();
+    loop();
+</script>
+
+</body>
+</html>
